@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ignite Knights - Medical Response Drone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        html { scroll-behavior: smooth; }
+        /* Applied Red & Black Theme Background */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            background-image: radial-gradient(ellipse at top, #4c0519 0%, #111827 70%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+        /* Updated Gradient Text to Red/Crimson */
+        .gradient-text { background: linear-gradient(to right, #ef4444, #b91c1c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .card-hover-effect { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        /* Updated Hover Shadow to Red */
+        .card-hover-effect:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.2), 0 4px 6px -2px rgba(220, 38, 38, 0.1); }
+
+        .modal-backdrop { background-color: rgba(0,0,0,0.8); transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+        .modal-hidden { opacity: 0; pointer-events: none; }
+        .modal-visible { opacity: 1; pointer-events: auto; }
+        .modal-content-hidden { transform: scale(0.95); opacity: 0; }
+        .modal-content-visible { transform: scale(1); opacity: 1; }
+        .hidden { display: none; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+
+        /* Updated Nav Active Color */
+        .nav-active { color: #f87171; }
+
+        /* Drone Telemetry Styles */
+        .telemetry-value { font-size: 1.75rem; font-weight: 700; color: #fff; }
+        .telemetry-label { font-size: 0.875rem; color: #9ca3af; }
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
+        .status-connected { background-color: #34d399; box-shadow: 0 0 5px #34d399; }
+        .status-disconnected { background-color: #f87171; box-shadow: 0 0 5px #f87171; }
+        .status-connecting { background-color: #f59e0b; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        /* Mission Status Styles */
+        .mission-step { transition: all 0.3s ease; }
+        .mission-step-active { color: #4ade80; font-weight: bold; }
+        .mission-step-inactive { color: #6b7280; }
+        /* Battery Health Bar Styles */
+        .health-bar-fill { transition: width 0.5s ease-in-out, background-color 0.5s ease; }
+        #drone-dot { transition: all 0.5s linear; }
+    </style>
+</head>
+<body class="bg-gray-900">
+
+<header class="bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800">
+    <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center">
+                <a href="#" class="flex-shrink-0 flex items-center space-x-3">
+                    <img src="./Ignite Logo@3x.png" alt="Logo" class="h-10 w-10">
+                    <div>
+                        <span class="text-2xl text-white font-bold">Ignite Knights</span>
+                        <p class="text-xs text-gray-400">We Don't Stop We Switch Gears</p>
+                    </div>
+                </a>
+            </div>
+            <div id="auth-container" class="flex items-center space-x-4">
+            </div>
+        </div>
+    </nav>
+</header>
+
+<div id="main-app" class="pb-20">
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div id="view-container">
+            <div id="shop-view">
+                <section class="text-center my-10 md:my-16">
+                    <div class="inline-block bg-red-500/10 text-red-400 px-3 py-1 rounded-full text-sm font-medium mb-4">
+                        <i class="fas fa-shipping-fast mr-2"></i>Medical Drone Delivery
+                    </div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold text-white tracking-tight">Fast <span class="gradient-text">Medicine Delivery</span></h1>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-gray-300">
+                        Get your essential medicines and health products delivered to your doorstep in minutes with our advanced drone network.
+                    </p>
+                </section>
+                <section id="products-section" class="mt-20">
+                    <h2 class="text-3xl font-bold text-white mb-8">Medicines & Tablets</h2>
+                    <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    </div>
+                </section>
+            </div>
+
+            <div id="order-history-view" class="hidden">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-bold text-white">My Orders</h1>
+                    <button id="back-to-shop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Back to Shop</button>
+                </div>
+                <div id="order-history-container" class="space-y-6">
+                </div>
+            </div>
+        </div>
+
+        <section id="ai-section" class="my-24 bg-gray-800/50 rounded-2xl p-6 md:p-12">
+            <div class="flex items-start space-x-4">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
+                        <i class="fas fa-robot text-2xl text-white"></i>
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-xl font-bold text-white">AI Assistant</h3>
+                    <p class="text-red-300 text-sm">Your Personal Health Helper</p>
+                    <div id="ai-response" class="mt-4 text-gray-300 prose">
+                        I can help you find medicines and get them delivered by drone. Ask me anything!
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex items-center bg-gray-900 border border-gray-700 rounded-lg p-1">
+                <input id="ai-prompt" type="text" placeholder="Ask about medicines or services..." class="flex-1 bg-transparent text-white placeholder-gray-500 focus:outline-none px-4">
+                <button id="ai-send-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg w-10 h-10 flex items-center justify-center">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <div id="ai-loader" class="hidden mt-4 flex justify-center items-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-400"></div>
+                <p class="ml-3 text-red-300">Ignite Knights AI is thinking...</p>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="drone-control-panel" class="hidden container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl font-bold text-white">Drone Control Panel</h1>
+        <div id="connection-status" class="flex items-center space-x-3 bg-gray-800 px-4 py-2 rounded-lg">
+            <span id="connection-dot" class="status-dot status-disconnected"></span>
+            <span id="connection-text" class="font-medium text-white">Disconnected</span>
+        </div>
+    </div>
+
+    <div class="bg-gray-800/50 p-4 rounded-lg mb-8 flex items-center space-x-4">
+        <label for="pi-address" class="text-white font-medium">Raspberry Pi Address:</label>
+        <input type="text" id="pi-address" value="localhost" class="flex-1 bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-red-500">
+        <button id="connect-drone-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Connect</button>
+        <button id="disconnect-drone-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">Disconnect</button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-8">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold text-red-400 mb-6 flex items-center">
+                    <i class="fas fa-satellite-dish mr-2"></i>Live Telemetry
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center items-center">
+                    <div class="col-span-2 md:col-span-1">
+                        <p class="telemetry-label">BATTERY</p>
+                        <div class="w-full bg-gray-700 rounded-full h-6 my-2 relative">
+                            <div id="telemetry-battery-bar" class="health-bar-fill bg-green-500 h-6 rounded-full" style="width: 100%;"></div>
+                            <span id="telemetry-battery-text" class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">100%</span>
+                        </div>
+                        <p id="telemetry-voltage" class="text-xs text-gray-400 mt-1">-- V</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">SPEED</p>
+                        <p id="telemetry-speed" class="telemetry-value">--</p>
+                        <p class="text-gray-400 text-xs">m/s</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">ALTITUDE</p>
+                        <p id="telemetry-altitude" class="telemetry-value">--</p>
+                        <p class="text-gray-400 text-xs">meters</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">ROLL</p>
+                        <p id="telemetry-roll" class="telemetry-value text-sm">--</p>
+                        <p class="text-gray-400 text-xs">degrees</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">PITCH</p>
+                        <p id="telemetry-pitch" class="telemetry-value text-sm">--</p>
+                        <p class="text-gray-400 text-xs">degrees</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">GPS FIX</p>
+                        <p id="telemetry-gps-fix" class="telemetry-value text-sm text-yellow-500">--</p>
+                        <p class="text-gray-400 text-xs">Type</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">SATELLITES</p>
+                        <p id="telemetry-satellites" class="telemetry-value text-sm">--</p>
+                        <p class="text-gray-400 text-xs">Count</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">ARMED</p>
+                        <p id="telemetry-armed" class="telemetry-value text-sm text-red-500">--</p>
+                    </div>
+                    <div>
+                        <p class="telemetry-label">FLIGHT MODE</p>
+                        <p id="telemetry-flight-mode" class="text-lg font-bold text-red-300 mt-2">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <p class="text-sm text-gray-400"><i class="fas fa-info-circle mr-2"></i><span id="telemetry-message">Waiting for Mission Planner connection...</span></p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-2xl font-semibold text-red-400 mb-6">Mission Status</h2>
+                <div id="mission-status-container" class="flex items-center justify-around text-lg">
+                    <span id="ms-step-home1" class="mission-step mission-step-inactive"><i class="fas fa-home mr-2"></i>Home (Start)</span>
+                    <span class="text-gray-600">→</span>
+                    <span id="ms-step-dest" class="mission-step mission-step-inactive"><i class="fas fa-box mr-2"></i>Destination</span>
+                    <span class="text-gray-600">→</span>
+                    <span id="ms-step-home2" class="mission-step mission-step-inactive"><i class="fas fa-flag-checkered mr-2"></i>Home (End)</span>
+                </div>
+                <p id="mission-status-text" class="text-center text-gray-400 mt-4">Drone is currently IDLE.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-gray-800 p-6 rounded-lg">
+                    <h2 class="text-2xl font-semibold text-red-400 mb-4">Live Location</h2>
+                    <div id="map-placeholder" class="bg-gray-900 rounded-lg h-48 w-full flex items-center justify-center text-gray-500 relative overflow-hidden">
+                        <i class="fas fa-map-marked-alt fa-4x opacity-20"></i>
+                        <div id="drone-dot" class="absolute w-3 h-3 bg-red-500 rounded-full shadow-lg shadow-red-500/50" style="left: 50%; top: 50%; transform: translate(-50%, -50%);"></div>
+                        <p class="absolute bottom-2 left-2 text-xs">Lat: <span id="telemetry-lat">--</span> | Lon: <span id="telemetry-lon">--</span></p>
+                    </div>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg">
+                    <h2 class="text-2xl font-semibold text-red-400 mb-4">Live Camera Feed</h2>
+                    <div class="bg-black rounded-lg h-48 w-full flex items-center justify-center text-gray-600">
+                        <div class="text-center">
+                            <i class="fas fa-video-slash fa-3x"></i>
+                            <p class="mt-2 font-semibold">FEED OFFLINE</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold text-red-400 mb-4 flex items-center">
+                    <i class="fas fa-qrcode mr-2"></i>QR Scans
+                </h2>
+                <div id="qr-scans-container" class="space-y-3 h-64 overflow-y-auto">
+                    <p class="text-gray-400 text-sm text-center py-4">No QR codes detected yet...</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold text-red-400 mb-6 flex items-center">
+                    <i class="fas fa-shopping-bag mr-2"></i>Real-Time Orders
+                </h2>
+                <div id="orders-container" class="space-y-6 h-[60vh] overflow-y-auto">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-gray-900 border-t border-gray-800 mt-12">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-gray-400">
+        <p><a href="#" id="seller-login-link" class="hover:text-red-400">Seller Portal</a></p>
+        <p class="font-semibold mb-2 mt-4">Developed By</p>
+        <p>Team Ignite Knights</p>
+    </div>
+</footer>
+
+<div id="mobile-nav" class="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900/80 backdrop-blur-sm border-t border-gray-800 flex justify-around items-center p-2 z-40">
+    <button id="bottom-nav-shop" class="flex flex-col items-center nav-active"><i class="fas fa-pills text-xl"></i><span class="text-xs mt-1">Shop</span></button>
+    <button id="bottom-nav-orders" class="flex flex-col items-center text-gray-300 hover:text-red-400"><i class="fas fa-history text-xl"></i><span class="text-xs mt-1">My Orders</span></button>
+    <a href="https://wa.me/919150316901?text=Hello%20Doctor%2C%20I%20need%20to%20consult%20with%20you" target="_blank" class="flex flex-col items-center text-gray-300 hover:text-red-400"><i class="fas fa-stethoscope text-xl"></i><span class="text-xs mt-1">Consult</span></a>
+    <button id="bottom-nav-profile" class="flex flex-col items-center text-gray-300 hover:text-red-400"><i class="fas fa-user text-xl"></i><span class="text-xs mt-1">Profile</span></button>
+</div>
+
+<button id="ai-fab-btn" class="bg-red-600 hover:bg-red-700 fixed bottom-20 right-5 w-16 h-16 rounded-full flex items-center justify-center z-40 shadow-lg"><i class="fas fa-robot text-2xl text-white"></i></button>
+
+<div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden"></div>
+<div id="cart-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden"></div>
+<div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden"></div>
+<div id="message-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden"></div>
+<div id="profile-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden"></div>
+<div id="tracking-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop modal-hidden"></div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, doc, getDoc, setDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- App Configuration ---
+    const firebaseConfig = {
+        apiKey: "",
+        authDomain: "",
+        projectId: "",
+        storageBucket: "",
+        messagingSenderId: "",
+        appId: "",
+        measurementId: ""
+    };
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'dronedeliveryapp-e0753';
+
+    // --- Firebase Initialization ---
+    let app, auth, db;
+    try { app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); } catch (e) { console.error("Firebase initialization failed.", e); }
+
+    // --- Global State ---
+    let currentUser = null;
+    let cart = [];
+    let unsubscribeOrders = null;
+    let unsubscribeUserOrders = null;
+    let droneSocket = null;
+
+    // --- UI Elements ---
+    const mainApp = document.getElementById('main-app');
+    const droneControlPanel = document.getElementById('drone-control-panel');
+    const productGrid = document.getElementById('product-grid');
+    const shopView = document.getElementById('shop-view');
+    const orderHistoryView = document.getElementById('order-history-view');
+
+    // --- Hardcoded Product Data (Preserved from Original Index.html) ---
+    const products = [
+        { id: 'm1', name: 'Paracetamol 500mg', seller: 'Cipla', price: 35, rating: 4.8, time: '15-20 min', image: 'https://placehold.co/300x200/3b82f6/ffffff?text=Meds' },
+        { id: 'm2', name: 'Cetirizine 10mg', seller: 'Dr. Reddy\'s', price: 50, rating: 4.7, time: '15-20 min', image: 'https://placehold.co/300x200/14b8a6/ffffff?text=Allergy' },
+        { id: 'm3', name: 'Vitamin C 500mg', seller: 'Sun Pharma', price: 120, rating: 4.9, time: '10-15 min', image: 'https://placehold.co/300x200/f97316/ffffff?text=Vitamins' },
+        { id: 'm4', name: 'Antacid Gel', seller: 'Abbott', price: 85, rating: 4.6, time: '20-25 min', image: 'https://placehold.co/300x200/ec4899/ffffff?text=Antacid' },
+        { id: 'm5', name: 'Band-Aid (Pack of 20)', seller: 'J&J', price: 45, rating: 4.5, time: '10-15 min', image: 'https://placehold.co/300x200/8b5cf6/ffffff?text=First+Aid' },
+        { id: 'm6', name: 'Cough Syrup', seller: 'Glenmark', price: 110, rating: 4.6, time: '15-20 min', image: 'https://placehold.co/300x200/14b8a6/ffffff?text=Cough' },
+        { id: 'm7', name: 'Aspirin 75mg', seller: 'Bayer', price: 25, rating: 4.7, time: '20-25 min', image: 'https://placehold.co/300x200/ef4444/ffffff?text=Aspirin' },
+        { id: 'm8', name: 'Multivitamin Tablets', seller: 'Himalaya', price: 250, rating: 4.8, time: '15-20 min', image: 'https://placehold.co/300x200/10b981/ffffff?text=Health' },
+    ];
+
+    // --- Drone Control Panel Logic ---
+    const updateConnectionStatus = (status) => {
+        const connectionDot = document.getElementById('connection-dot');
+        const connectionText = document.getElementById('connection-text');
+        const startMissionButtons = document.querySelectorAll('.start-mission-btn');
+        connectionDot.className = 'status-dot';
+        if (status === 'connecting') {
+            connectionText.textContent = 'Connecting...';
+            connectionDot.classList.add('status-connecting');
+            startMissionButtons.forEach(btn => btn.disabled = true);
+        } else if (status === 'connected') {
+            connectionText.textContent = 'Connected';
+            connectionDot.classList.add('status-connected');
+            startMissionButtons.forEach(btn => btn.disabled = false);
+        } else {
+            connectionText.textContent = 'Disconnected';
+            connectionDot.classList.add('status-disconnected');
+            startMissionButtons.forEach(btn => btn.disabled = true);
+        }
+    };
+
+    const updateMissionStatusUI = (status) => {
+        const steps = { home1: document.getElementById('ms-step-home1'), dest: document.getElementById('ms-step-dest'), home2: document.getElementById('ms-step-home2'), };
+        const statusText = document.getElementById('mission-status-text');
+        Object.values(steps).forEach(step => step.classList.replace('mission-step-active', 'mission-step-inactive'));
+        if (status === 'Idle') {
+            steps.home1.classList.replace('mission-step-inactive', 'mission-step-active');
+            statusText.textContent = "Drone is waiting for a mission.";
+        } else if (status === 'Flying to Destination') {
+            steps.dest.classList.replace('mission-step-inactive', 'mission-step-active');
+            statusText.textContent = "Drone is en route to the delivery location.";
+        } else if (status === 'Returning to Home') {
+            steps.home2.classList.replace('mission-step-inactive', 'mission-step-active');
+            statusText.textContent = "Drone is returning to the launch point.";
+        } else { statusText.textContent = `Current Status: ${status}`; }
+    }
+
+    // Helper function to map a value from one range to another
+    const mapValue = (value, in_min, in_max, out_min, out_max) => (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+
+    const updateTelemetryUI = (data) => {
+        const batteryBar = document.getElementById('telemetry-battery-bar'), batteryText = document.getElementById('telemetry-battery-text'), speedEl = document.getElementById('telemetry-speed'), altitudeEl = document.getElementById('telemetry-altitude'), modeEl = document.getElementById('telemetry-flight-mode'), latEl = document.getElementById('telemetry-lat'), lonEl = document.getElementById('telemetry-lon'), droneDot = document.getElementById('drone-dot');
+
+        // Enhanced telemetry elements
+        const voltageEl = document.getElementById('telemetry-voltage');
+        const rollEl = document.getElementById('telemetry-roll');
+        const pitchEl = document.getElementById('telemetry-pitch');
+        const gpsFixEl = document.getElementById('telemetry-gps-fix');
+        const satellitesEl = document.getElementById('telemetry-satellites');
+        const armedEl = document.getElementById('telemetry-armed');
+        const messageEl = document.getElementById('telemetry-message');
+
+        // Battery & Voltage
+        const batteryPercent = data.battery_percent !== null ? Math.round(data.battery_percent) : 0;
+        batteryText.textContent = `${batteryPercent}%`;
+        batteryBar.style.width = `${batteryPercent}%`;
+        batteryBar.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-500');
+        if (batteryPercent < 20) batteryBar.classList.add('bg-red-500'); else if (batteryPercent < 50) batteryBar.classList.add('bg-yellow-500'); else batteryBar.classList.add('bg-green-500');
+        voltageEl.textContent = data.voltage !== null ? `${data.voltage.toFixed(2)} V` : '-- V';
+
+        // Speed & Altitude
+        speedEl.textContent = data.ground_speed !== null ? data.ground_speed.toFixed(1) : '--';
+        altitudeEl.textContent = data.altitude !== null ? data.altitude.toFixed(1) : '--';
+
+        // Attitude (Roll/Pitch)
+        rollEl.textContent = data.roll !== null ? data.roll.toFixed(1) : '--';
+        pitchEl.textContent = data.pitch !== null ? data.pitch.toFixed(1) : '--';
+
+        // GPS Status
+        satellitesEl.textContent = data.satellites_visible !== null ? data.satellites_visible : '--';
+        let gpsFixText = '--';
+        let fixColor = 'text-yellow-500';
+        if (data.gps_fix === 0) { gpsFixText = 'NO FIX'; fixColor = 'text-red-500'; }
+        else if (data.gps_fix === 1) { gpsFixText = 'NO GPS'; fixColor = 'text-red-500'; }
+        else if (data.gps_fix === 2) { gpsFixText = '2D FIX'; fixColor = 'text-yellow-500'; }
+        else if (data.gps_fix >= 3 && data.gps_fix <= 4) { gpsFixText = '3D/DGPS'; fixColor = 'text-green-500'; }
+        else if (data.gps_fix >= 5) { gpsFixText = 'RTK'; fixColor = 'text-green-400'; }
+        gpsFixEl.textContent = gpsFixText;
+        gpsFixEl.className = `telemetry-value text-sm ${fixColor}`;
+
+        // Flight Mode & Arming
+        modeEl.textContent = data.flight_mode || '--';
+        const armedText = data.armed ? 'ARMED' : 'DISARMED';
+        const armedColor = data.armed ? 'text-green-500' : 'text-red-500';
+        armedEl.textContent = armedText;
+        armedEl.className = `telemetry-value text-sm ${armedColor}`;
+
+        // System Messages
+        if (data.message) messageEl.textContent = data.message;
+
+        // Location & Map
+        if (data.latitude && data.longitude) {
+            latEl.textContent = data.latitude.toFixed(4);
+            lonEl.textContent = data.longitude.toFixed(4);
+            const latPercent = mapValue(data.latitude, 12.9, 13.2, 5, 95);
+            const lonPercent = mapValue(data.longitude, 80.1, 80.4, 5, 95);
+            droneDot.style.left = `${lonPercent}%`;
+            droneDot.style.top = `${100 - latPercent}%`;
+        }
+
+        if (data.mission_status) updateMissionStatusUI(data.mission_status);
+    };
+
+    const connectToDrone = () => {
+        if (droneSocket && droneSocket.readyState === WebSocket.OPEN) return;
+        const piAddress = document.getElementById('pi-address').value;
+        if (!piAddress) { showMessageModal("Error", "Please enter the Raspberry Pi address."); return; }
+        const wsUrl = `ws://${piAddress}:8765`;
+        updateConnectionStatus('connecting');
+        droneSocket = new WebSocket(wsUrl);
+        droneSocket.onopen = () => updateConnectionStatus('connected');
+        droneSocket.onmessage = (event) => updateTelemetryUI(JSON.parse(event.data));
+        droneSocket.onclose = () => updateConnectionStatus('disconnected');
+        droneSocket.onerror = () => { updateConnectionStatus('disconnected'); showMessageModal('Connection Error', 'Could not connect to the drone server.'); };
+    };
+
+    const disconnectFromDrone = () => { if (droneSocket) { droneSocket.close(); droneSocket = null; updateConnectionStatus('disconnected'); } };
+    const sendDroneCommand = (command) => { if (droneSocket && droneSocket.readyState === WebSocket.OPEN) { droneSocket.send(JSON.stringify(command)); } else { showMessageModal('Error', 'Drone is not connected.'); } };
+
+    // --- Render Functions ---
+    const renderProducts = () => {
+        if (!productGrid) return;
+        productGrid.innerHTML = products.map(product => `
+            <div class="bg-gray-800 rounded-lg overflow-hidden card-hover-effect">
+                <div class="relative"><img src="${product.image}" alt="${product.name}" class="w-full h-40 object-cover"></div>
+                <div class="p-4">
+                    <h3 class="text-lg font-bold text-white">${product.name}</h3>
+                    <p class="text-sm text-gray-400">${product.seller}</p>
+                    <div class="flex items-center justify-between mt-4">
+                        <div class="flex items-center space-x-2">
+                            <div class="flex items-center text-sm"><i class="fas fa-star text-yellow-400 mr-1"></i><span class="text-white font-semibold">${product.rating}</span></div>
+                            <div class="text-sm text-gray-400 flex items-center"><i class="fas fa-clock text-gray-500 mr-1"></i>${product.time}</div>
+                        </div>
+                        <span class="text-lg font-bold text-white">₹${product.price}</span>
+                    </div>
+                    <div class="flex items-center mt-4 space-x-2">
+                        <input type="number" id="qty-${product.id}" class="w-16 bg-gray-700 text-white text-center rounded-lg" value="1" min="1">
+                        <button data-product-id="${product.id}" class="add-to-cart-btn flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">+ Add</button>
+                    </div>
+                </div>
+            </div>`).join('');
+    };
+
+    const updateAuthUI = () => {
+        const authContainer = document.getElementById('auth-container');
+        if (!authContainer) return;
+        const mobileNav = document.getElementById('mobile-nav');
+        authContainer.innerHTML = '';
+        if (currentUser) {
+            const isSeller = currentUser.isSeller;
+            mainApp.classList.toggle('hidden', isSeller);
+            droneControlPanel.classList.toggle('hidden', !isSeller);
+            mobileNav.classList.toggle('hidden', isSeller);
+            if (isSeller) {
+                if (unsubscribeUserOrders) unsubscribeUserOrders();
+                listenToAllOrders();
+                listenToQrScans();
+            } else {
+                if (unsubscribeOrders) unsubscribeOrders();
+                listenToUserOrders();
+            }
+            authContainer.innerHTML = `
+                <span class="text-sm text-white hidden sm:block">Welcome, ${currentUser.displayName || currentUser.email}</span>
+                ${isSeller ? '' : `
+                <button id="desktop-orders-btn" class="text-gray-300 hover:text-white font-medium">My Orders</button>
+                <button id="cart-btn" class="relative w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center">
+                    <i class="fas fa-shopping-cart text-white"></i>
+                    <span id="cart-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden"></span>
+                </button>
+                `}
+                <button id="signout-btn" class="text-gray-300 hover:text-white font-medium">Sign Out</button>
+            `;
+        } else {
+            mainApp.classList.remove('hidden');
+            droneControlPanel.classList.add('hidden');
+            mobileNav.classList.remove('hidden');
+            authContainer.innerHTML = `
+                <a href="#" id="signin-link" class="text-gray-300 hover:text-white font-medium">Login</a>
+                <a href="#" id="register-link" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Sign Up</a>
+            `;
+        }
+        updateCartCount();
+    };
+
+   const renderOrders = (orders, containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = orders.length === 0 ? '<p class="text-gray-400 p-4">No orders found.</p>' : '';
+        orders.forEach(order => {
+            const orderCard = document.createElement('div');
+            const isSellerView = containerId === 'orders-container';
+            orderCard.className = 'bg-gray-800 p-6 rounded-lg';
+            const itemsHtml = order.items.map(item => `<li>${item.name} (x${item.quantity}) - ₹${item.price}</li>`).join('');
+            const orderDate = order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleString() : 'N/A';
+
+            // Updated Button to Red for Start Mission
+            const sellerControls = isSellerView ? `
+                <button data-order-id="${order.id}" class="start-mission-btn w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg disabled:bg-gray-500" disabled>Start Delivery</button>
+            ` : '';
+
+            // Updated Button to Red for Track Order
+            const customerControls = !isSellerView ? `
+                <button data-order-id="${order.id}" class="track-order-btn w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Track Order</button>
+            ` : '';
+
+            orderCard.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-white">Order #${order.id.substring(0, 6)}</h3>
+                    <span class="text-lg font-semibold text-green-400">₹${order.total}</span>
+                </div>
+                <p class="text-sm text-gray-400 mt-1">Placed on: ${orderDate}</p>
+                ${isSellerView ? `<p class="text-sm text-gray-400 mt-1">Customer: ${order.customerName || order.customerEmail}</p>` : ''}
+                <div class="mt-2">
+                    <p class="text-sm font-semibold text-gray-300">Address:</p>
+                    <p class="text-sm text-gray-400 whitespace-pre-wrap">${order.deliveryAddress}</p>
+                </div>
+                 <div class="mt-2">
+                    <p class="text-sm font-semibold text-gray-300">Payment:</p>
+                    <p class="text-sm text-gray-400">${order.paymentMethod}</p>
+                </div>
+                <ul class="list-disc list-inside mt-4 text-gray-300">${itemsHtml}</ul>
+                ${sellerControls}
+                ${customerControls}
+            `;
+            container.appendChild(orderCard);
+        });
+         if(containerId === 'orders-container'){
+            updateConnectionStatus(droneSocket && droneSocket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected');
+         }
+    };
+
+
+    // --- Modal Functions ---
+    const showModal = (id, content) => {
+        const modalBackdrop = document.getElementById(id);
+        modalBackdrop.innerHTML = content;
+        modalBackdrop.classList.remove('hidden');
+        setTimeout(() => { modalBackdrop.classList.remove('modal-hidden'); modalBackdrop.querySelector('.modal-content')?.classList.remove('modal-content-hidden'); }, 10);
+    };
+
+    window.hideModal = (id) => {
+        const modalBackdrop = document.getElementById(id);
+        modalBackdrop.classList.add('modal-hidden');
+        modalBackdrop.querySelector('.modal-content')?.classList.add('modal-content-hidden');
+        setTimeout(() => modalBackdrop.classList.add('hidden'), 300);
+    };
+
+    const showMessageModal = (title, message) => {
+        // Updated Button to Red
+        const content = `<div class="modal-content modal-content-hidden bg-gray-800 w-full max-w-sm p-6 rounded-lg text-center"><h3 class="text-xl font-bold text-white mb-4">${title}</h3><p class="text-gray-300 mb-6">${message}</p><button onclick="hideModal('message-modal')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Close</button></div>`;
+        showModal('message-modal', content);
+    };
+
+    const showAuthModal = (isRegister, isSeller = false) => {
+        const title = isSeller ? 'Seller Sign In' : (isRegister ? 'Create Account' : 'Sign In');
+        let formFields = isRegister ? `
+                <input type="text" id="name" placeholder="Full Name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">
+                <input type="email" id="email" placeholder="Email ID" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">
+                <input type="tel" id="phone" placeholder="Phone Number" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">
+                <input type="password" id="password" placeholder="Password" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">
+                <input type="password" id="confirm_password" placeholder="Confirm Password" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">
+                <textarea id="address" placeholder="Address" rows="2" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white"></textarea>
+                <input type="date" id="dob" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">`
+            : `<input type="email" id="email" placeholder="Email" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">
+               <input type="password" id="password" placeholder="Password" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white">`;
+
+        // Updated Button to Red
+        const content = `<div class="modal-content modal-content-hidden bg-gray-800 w-full max-w-sm p-8 rounded-lg"><h2 class="text-2xl font-bold text-white text-center mb-6">${title}</h2><form id="auth-form" class="space-y-4">${formFields}<button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">${title}</button></form><button onclick="hideModal('auth-modal')" class="w-full mt-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg">Cancel</button></div>`;
+        showModal('auth-modal', content);
+
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = e.target.email.value, password = e.target.password.value;
+            try {
+                if (isRegister) {
+                    if (password !== e.target.confirm_password.value) { showMessageModal('Error', 'Passwords do not match.'); return; }
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const name = e.target.name.value;
+                    await updateProfile(userCredential.user, { displayName: name });
+                    await setDoc(doc(db, 'artifacts', appId, 'users', userCredential.user.uid), { name, email, phone: e.target.phone.value, address: e.target.address.value, dob: e.target.dob.value });
+                } else { await signInWithEmailAndPassword(auth, email, password); }
+                hideModal('auth-modal');
+            } catch (error) { showMessageModal('Authentication Error', error.message); }
+        });
+    };
+
+    const showCartModal = () => {
+        if (cart.length === 0) { showMessageModal('Empty Cart', 'Your shopping cart is empty.'); return; }
+        let total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        // Updated Trash Icon to Red
+        let cartContent = cart.map(item => `<li class="flex justify-between items-center py-2"><div><p class="text-white font-semibold">${item.name}</p><p class="text-gray-400 text-sm">Qty: ${item.quantity}</p></div><div class="flex items-center"><span class="text-white font-semibold mr-4">₹${item.price * item.quantity}</span><button data-product-id="${item.id}" class="remove-from-cart-btn text-red-400 hover:text-red-500"><i class="fas fa-trash"></i></button></div></li>`).join('');
+        // Updated Button to Red
+        const content = `<div class="modal-content modal-content-hidden bg-gray-800 w-full max-w-md p-8 rounded-lg"><h2 class="text-2xl font-bold text-white mb-6">Your Cart</h2><ul class="divide-y divide-gray-700">${cartContent}</ul><div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-700"><span class="text-xl font-bold text-white">Total:</span><span class="text-xl font-bold text-white">₹${total}</span></div><div class="flex justify-between mt-6"><button onclick="hideModal('cart-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">Continue Shopping</button><button id="proceed-to-checkout-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Checkout</button></div></div>`;
+        showModal('cart-modal', content);
+    };
+
+    const showCheckoutModal = () => {
+        const gpayId = 'balaharish0202-2@okicici', total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const upiString = `upi://pay?pa=${gpayId}&pn=Ignite Knights&am=${total}&cu=INR`, qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}`;
+        const savedAddress = currentUser.profile?.address || '';
+        // Updated Button and Radio Accents to Red/Indigo
+        const content = `<div class="modal-content modal-content-hidden bg-gray-800 w-full max-w-lg p-8 rounded-lg"><h2 class="text-2xl font-bold text-white mb-6">Checkout</h2><form id="checkout-form"><div class="mb-4"><div class="flex justify-between items-center mb-2"><label for="address" class="block text-sm font-medium text-gray-300">Delivery Address</label><button type="button" id="get-location-btn" class="text-sm text-red-400 hover:text-red-300 font-semibold"><i class="fas fa-location-arrow mr-1"></i>Use Current Location</button></div><textarea id="address" rows="3" required class="w-full bg-gray-700 rounded-lg p-2 text-white">${savedAddress}</textarea></div><div class="mb-6"><label class="block text-sm font-medium text-gray-300 mb-2">Payment Method</label><div class="space-y-2"><label class="flex items-center p-3 bg-gray-700/50 rounded-lg"><input type="radio" name="payment" value="COD" checked class="h-4 w-4 text-red-600"><span class="ml-3 text-white">Cash on Delivery</span></label><label class="flex items-center p-3 bg-gray-700/50 rounded-lg"><input type="radio" name="payment" value="GPay" class="h-4 w-4 text-red-600"><span class="ml-3 text-white">GPay / UPI</span></label></div></div><div id="gpay-details" class="hidden text-center p-4 bg-black/50 rounded-lg mb-6"><p class="text-white">Scan to pay</p><img src="${qrCodeUrl}" class="mx-auto my-4 rounded-lg"><p class="text-sm text-gray-400">UPI ID: ${gpayId}</p></div><div class="flex justify-between mt-6"><button type="button" onclick="hideModal('checkout-modal')" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">Back</button><button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Confirm Order</button></div></form></div>`;
+        showModal('checkout-modal', content);
+    };
+
+    const showProfileModal = (isEditing = false) => {
+        if (!currentUser) return;
+        const profile = currentUser.profile || {};
+        // Updated Gradient and Button to Red
+        let content = isEditing ? `<div class="modal-content modal-content-hidden bg-gray-800 w-full max-w-sm p-8 rounded-lg"><h2 class="text-2xl font-bold text-white mb-6">Edit Profile</h2><form id="profile-form" class="space-y-4 text-left"><div><label class="text-sm text-gray-400">Full Name</label><input type="text" id="profile-name" value="${currentUser.displayName || ''}" required class="w-full bg-gray-700 rounded-lg py-3 px-4 text-white"></div><div><label class="text-sm text-gray-400">Phone</label><input type="tel" id="profile-phone" value="${profile.phone || ''}" required class="w-full bg-gray-700 rounded-lg py-3 px-4 text-white"></div><div><label class="text-sm text-gray-400">Address</label><textarea id="profile-address" rows="2" required class="w-full bg-gray-700 rounded-lg py-3 px-4 text-white">${profile.address || ''}</textarea></div><div><label class="text-sm text-gray-400">Date of Birth</label><input type="date" id="profile-dob" value="${profile.dob || ''}" required class="w-full bg-gray-700 rounded-lg py-3 px-4 text-white"></div><button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Save</button></form><button id="cancel-edit-profile" class="w-full mt-2 bg-gray-600 text-white font-bold py-3 px-4 rounded-lg">Cancel</button></div>`
+            : `<div class="modal-content modal-content-hidden bg-gray-800 w-full max-w-sm p-6 rounded-lg relative"><button id="edit-profile-btn" class="absolute top-4 right-4 text-white hover:text-red-400"><i class="fas fa-pencil-alt fa-lg"></i></button><div class="flex flex-col items-center"><div class="w-24 h-24 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center mb-4"><i class="fas fa-user fa-3x text-white"></i></div><h2 class="text-2xl font-bold text-white">${currentUser.displayName}</h2><p class="text-gray-400">${currentUser.email}</p><div class="w-full text-left bg-gray-900 p-4 mt-4 rounded-lg"><h3 class="font-semibold text-white mb-2">Address</h3><p class="text-gray-300">${profile.address || 'Not set'}</p></div><button id="modal-signout-btn" class="w-full mt-6 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Sign Out</button><button onclick="hideModal('profile-modal')" class="w-full mt-2 bg-gray-600 text-white font-bold py-3 px-4 rounded-lg">Close</button></div></div>`;
+        showModal('profile-modal', content);
+    };
+
+    const showTrackingModal = (orderId) => {
+        // Updated Button to Red
+        const content = `<div class="modal-content modal-content-hidden bg-gray-800 w-full max-w-md p-6 rounded-lg shadow-lg text-center"><h2 class="text-xl font-bold text-white text-left mb-4">Tracking Order #${orderId.substring(0, 6)}</h2><div class="bg-gray-900 rounded-lg h-64 w-full flex items-center justify-center text-gray-500 mb-4"><i class="fas fa-map-marked-alt fa-4x"></i></div><div class="text-left mb-6"><p class="text-lg text-white">Status: <span class="text-green-400 font-semibold">Out for Delivery</span></p><p class="text-gray-400">Your drone is on its way!</p></div><button onclick="hideModal('tracking-modal')" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Close</button></div>`;
+        showModal('tracking-modal', content);
+    };
+
+    // --- Firebase Logic ---
+    onAuthStateChanged(auth, async (user) => {
+        if (user && !user.isAnonymous) {
+            const profileSnap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
+            currentUser = { ...user, profile: profileSnap.exists() ? profileSnap.data() : {} };
+            currentUser.displayName = currentUser.profile.name || user.displayName;
+            currentUser.isSeller = currentUser.email === 'seller@example.com';
+        } else { currentUser = null; }
+        updateAuthUI();
+    });
+
+    const placeOrder = async (deliveryAddress, paymentMethod) => {
+        if (!currentUser) return;
+        const orderData = { customerId: currentUser.uid, customerName: currentUser.displayName, customerEmail: currentUser.email, items: cart, total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0), status: 'pending', deliveryAddress, paymentMethod, createdAt: serverTimestamp() };
+        try { await addDoc(collection(db, `/artifacts/${appId}/public/data/orders`), orderData); showMessageModal('Order Placed!', 'Your order has been received.'); cart = []; updateCartCount(); hideModal('checkout-modal'); } catch (error) { showMessageModal('Order Error', 'Could not place your order.'); }
+    };
+
+    const listenToAllOrders = () => {
+        const q = query(collection(db, `/artifacts/${appId}/public/data/orders`));
+        unsubscribeOrders = onSnapshot(q, (snapshot) => { const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderOrders(orders.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)), 'orders-container'); });
+    };
+
+    // Listen to QR Scans (Preserved from Original Index.html)
+    const listenToQrScans = () => {
+        const qrScansRef = collection(db, 'qr_scans');
+        const q = query(qrScansRef, orderBy('timestamp', 'desc'), limit(10));
+        onSnapshot(q, (snapshot) => {
+            const container = document.getElementById('qr-scans-container');
+            if (!container) return;
+
+            if (snapshot.empty) {
+                container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No QR codes detected yet...</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const qrCard = document.createElement('div');
+                // Updated border color to red
+                qrCard.className = 'bg-gray-700 p-3 rounded-lg border-l-4 border-red-500';
+                const date = data.formatted_date || (data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : 'N/A');
+                qrCard.innerHTML = `
+                    <p class="text-white font-semibold text-sm break-all">${data.qr_data || 'N/A'}</p>
+                    <p class="text-gray-400 text-xs mt-1">${date}</p>
+                `;
+                container.appendChild(qrCard);
+            });
+        });
+    };
+
+    const listenToUserOrders = () => {
+        if (!currentUser) return;
+        const q = query(collection(db, `/artifacts/${appId}/public/data/orders`), where("customerId", "==", currentUser.uid));
+        unsubscribeUserOrders = onSnapshot(q, (snapshot) => { const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderOrders(orders.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)), 'order-history-container'); });
+    };
+
+    // --- Cart Logic ---
+    const addToCart = (productId, quantity) => {
+        if (!currentUser) { showAuthModal(false); return; }
+        const product = products.find(p => p.id === productId), itemInCart = cart.find(item => item.id === productId);
+        if (itemInCart) itemInCart.quantity += quantity; else cart.push({ ...product, quantity });
+        updateCartCount(); showMessageModal('Added to Cart', `${product.name} has been added to your cart.`);
+    };
+    const removeFromCart = (productId) => { cart = cart.filter(item => item.id !== productId); updateCartCount(); showCartModal(); };
+    const updateCartCount = () => {
+        const cartCountEl = document.getElementById('cart-count');
+        if (cartCountEl) { const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0); cartCountEl.textContent = totalItems; cartCountEl.classList.toggle('hidden', totalItems === 0); }
+    };
+
+    // --- View Switching ---
+    const switchView = (view) => {
+        shopView.classList.toggle('hidden', view !== 'shop');
+        orderHistoryView.classList.toggle('hidden', view !== 'history');
+        document.getElementById('bottom-nav-shop').classList.toggle('nav-active', view === 'shop');
+        document.getElementById('bottom-nav-orders').classList.toggle('nav-active', view === 'history');
+    };
+
+    // --- AI Assistant Logic ---
+    const callGeminiApi = async () => {
+        const promptInput = document.getElementById('ai-prompt'), prompt = promptInput.value.trim(); if (!prompt) return;
+        document.getElementById('ai-loader').classList.remove('hidden'); document.getElementById('ai-send-btn').disabled = true; document.getElementById('ai-response').textContent = '';
+        try {
+            const GEMINI_API_KEY = "", isCanvas = typeof __app_id !== 'undefined', apiKey = isCanvas ? "" : GEMINI_API_KEY;
+            if (!apiKey && !isCanvas) throw new Error("API key is missing.");
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: `You are a helpful, friendly AI assistant for Ignite Knights drone delivery. Keep responses concise. User asked: "${prompt}"` }] }] }) });
+            if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error.message); }
+            const data = await response.json(); document.getElementById('ai-response').textContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, no response.";
+        } catch (error) { document.getElementById('ai-response').textContent = `Error: ${error.message}`; }
+        finally { document.getElementById('ai-loader').classList.add('hidden'); document.getElementById('ai-send-btn').disabled = false; promptInput.value = ''; }
+    };
+
+    // --- Event Listeners ---
+    document.addEventListener('click', (e) => {
+        const target = e.target, targetClosest = (selector) => target.closest(selector);
+        if (target.id === 'connect-drone-btn') connectToDrone();
+        if (target.id === 'disconnect-drone-btn') disconnectFromDrone();
+        if (target.id === 'signin-link') showAuthModal(false);
+        if (target.id === 'register-link') showAuthModal(true);
+        if (target.id === 'seller-login-link') showAuthModal(false, true);
+        if (target.id === 'signout-btn' || target.id === 'modal-signout-btn') { hideModal('profile-modal'); signOut(auth); }
+        if (target.id === 'get-location-btn') {
+            if (navigator.geolocation) { navigator.geolocation.getCurrentPosition( (position) => { const { latitude, longitude } = position.coords; document.getElementById('address').value = `Latitude: ${latitude.toFixed(5)}, Longitude: ${longitude.toFixed(5)}`; showMessageModal('Location Fetched', 'Your current location has been set as the address.'); }, () => showMessageModal('Location Error', 'Unable to retrieve your location.') ); } else { showMessageModal('Not Supported', 'Geolocation is not supported by your browser.'); }
+        }
+        if (targetClosest('.add-to-cart-btn')) { const btn = targetClosest('.add-to-cart-btn'), qty = parseInt(document.getElementById(`qty-${btn.dataset.productId}`).value, 10); if (qty > 0) addToCart(btn.dataset.productId, qty); }
+        if (targetClosest('.remove-from-cart-btn')) removeFromCart(targetClosest('.remove-from-cart-btn').dataset.productId);
+        if (targetClosest('.start-mission-btn')) { const btn = targetClosest('.start-mission-btn'); sendDroneCommand({ command: 'start_mission', orderId: btn.dataset.orderId }); btn.textContent = 'Mission Started'; btn.disabled = true; }
+        if (target.id === 'cart-btn') showCartModal();
+        if (target.id === 'desktop-orders-btn') switchView('history');
+        if (target.id === 'proceed-to-checkout-btn') { hideModal('cart-modal'); showCheckoutModal(); }
+        if (target.id === 'ai-fab-btn') document.getElementById('ai-section').scrollIntoView({ behavior: 'smooth' });
+        if (targetClosest('#bottom-nav-shop') || target.id === 'back-to-shop-btn') switchView('shop');
+        if (targetClosest('#bottom-nav-orders')) switchView('history');
+        if (targetClosest('#bottom-nav-profile')) { if (currentUser) showProfileModal(false); else showAuthModal(false); }
+        if (targetClosest('#edit-profile-btn')) showProfileModal(true);
+        if (target.id === 'cancel-edit-profile') showProfileModal(false);
+        if (target.matches('.track-order-btn')) showTrackingModal(target.dataset.orderId);
+        if (target.id === 'ai-send-btn') callGeminiApi();
+    });
+
+    document.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (e.target.id === 'checkout-form') { placeOrder(e.target.address.value, e.target.payment.value); }
+        if (e.target.id === 'profile-form') {
+             const name = document.getElementById('profile-name').value;
+             await updateProfile(auth.currentUser, { displayName: name });
+             await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid), { ...currentUser.profile, name, phone: document.getElementById('profile-phone').value, address: document.getElementById('profile-address').value, dob: document.getElementById('profile-dob').value }, { merge: true });
+             showMessageModal('Success', 'Profile updated.'); hideModal('profile-modal');
+        }
+    });
+    document.addEventListener('change', (e) => { if (e.target.name === 'payment') document.getElementById('gpay-details').classList.toggle('hidden', e.target.value !== 'GPay'); });
+    document.getElementById('ai-prompt').addEventListener('keypress', (e) => e.key === 'Enter' && callGeminiApi());
+
+    // --- Initial Load ---
+    const init = async () => {
+        renderProducts();
+        updateMissionStatusUI('Idle');
+        try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); }
+            else { await signInAnonymously(auth); }
+        } catch (error) { console.error("Auth failed, falling back to anonymous:", error); if (!auth.currentUser) await signInAnonymously(auth); }
+    };
+
+    init();
+</script>
+</body>
+</html>
